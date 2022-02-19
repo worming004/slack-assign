@@ -3,18 +3,19 @@ package assign
 import (
 	"fmt"
 	"github.com/slack-go/slack"
-	"math/rand"
-	"time"
+	"github.com/worming004/slack-assign/pkg/assigner"
 )
 
 type Assign struct {
 	Configuration Configuration
 	Client        *slack.Client
+	assigner      assigner.Assigner
 }
 
 func NewAssign(C Configuration) *Assign {
 	api := slack.New(C.Token)
-	return &Assign{C, api}
+	assignUser := C.AssignUserId
+	return &Assign{C, api, assigner.NewSimplerAssigner([]string{assignUser})}
 }
 
 func (a *Assign) Run() error {
@@ -23,10 +24,10 @@ func (a *Assign) Run() error {
 		return err
 	}
 
-	selectedUser := string(GetRandomItem(users))
+	selectedUser := a.assigner.Assign(users)
 
-	a.PostMessage(selectedUser)
-
+	//a.PostMessage(selectedUser)
+	fmt.Println(selectedUser)
 	return nil
 }
 
@@ -37,7 +38,6 @@ func (a *Assign) PostMessage(userid string) error {
 }
 
 func (a *Assign) GetUsers() ([]string, error) {
-
 	users, _, err := a.Client.GetUsersInConversation(&slack.GetUsersInConversationParameters{
 		ChannelID: a.Configuration.ChannelId,
 	})
@@ -46,11 +46,4 @@ func (a *Assign) GetUsers() ([]string, error) {
 	}
 
 	return users, nil
-}
-
-func GetRandomItem(items []string) string {
-	rand.Seed(time.Now().Unix())
-	position := rand.Int() % len(items)
-
-	return items[position]
 }
