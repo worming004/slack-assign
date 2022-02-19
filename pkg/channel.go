@@ -2,6 +2,7 @@ package assign
 
 import (
 	"fmt"
+
 	"github.com/slack-go/slack"
 	"github.com/worming004/slack-assign/pkg/assigner"
 )
