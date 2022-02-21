@@ -13,10 +13,14 @@ type Assign struct {
 	assigner      assigner.Assigner
 }
 
-func NewAssign(C Configuration) *Assign {
+func NewAssign(C Configuration) (*Assign, error) {
 	api := slack.New(C.Token)
-	assignUser := C.AssignUserId
-	return &Assign{C, api, assigner.NewSimplerAssigner([]string{assignUser})}
+	assignUserIdToRemove := C.AssignUserId
+	assign, err := assigner.NewPonderedAssigner(C.DbPath, []string{assignUserIdToRemove})
+	if err != nil {
+		return nil, err
+	}
+	return &Assign{C, api, assign}, nil
 }
 
 func (a *Assign) Run() error {
@@ -27,8 +31,12 @@ func (a *Assign) Run() error {
 
 	selectedUser := a.assigner.Assign(users)
 
-	//a.PostMessage(selectedUser)
-	fmt.Println(selectedUser)
+	if !a.Configuration.IsDebug {
+		a.PostMessage(selectedUser)
+	} else {
+		fmt.Println(selectedUser)
+	}
+
 	return nil
 }
 

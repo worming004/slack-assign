@@ -1,9 +1,11 @@
 package assigner
 
 import (
+	"path/filepath"
+	"time"
+
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"time"
 )
 
 type AssignHistory struct {
@@ -14,20 +16,27 @@ type AssignHistory struct {
 
 type PonderedAssigner struct {
 	*gorm.DB
+	excludedUserIds []string
+	subAssign       Assigner
 }
 
-func NewPonderedAssigner() (PonderedAssigner, error) {
-	db, err := gorm.Open(sqlite.Open("slack-history.db"), &gorm.Config{})
+func NewPonderedAssigner(dbFolder string, usersToRemove []string) (PonderedAssigner, error) {
+	dbPath := filepath.Join(dbFolder, "slack-history.db")
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
 		return PonderedAssigner{}, err
 	}
 
 	db.AutoMigrate(&AssignHistory{})
 
-	return PonderedAssigner{db}, nil
+	return PonderedAssigner{db, usersToRemove, NewSimplerAssigner(usersToRemove)}, nil
 }
 
 func (pa PonderedAssigner) Assign(users []string) string {
-	// TODO make history useful
-	return ""
+	selectedUserId := pa.subAssign.Assign(users)
+	assignHistoryToStore := AssignHistory{UserId: selectedUserId, DateAssigned: time.Now()}
+
+	pa.Create(&assignHistoryToStore)
+
+	return selectedUserId
 }

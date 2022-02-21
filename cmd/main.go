@@ -6,9 +6,12 @@ import (
 
 func main() {
 	conf := assign.GetConfigurationByEnvironmentVariable()
-	a := assign.NewAssign(conf)
+	a, err := assign.NewAssign(conf)
+	if err != nil {
+		panic(err)
+	}
 
-	err := a.Run()
+	err = a.Run()
 
 	if err != nil {
 		panic(err)
