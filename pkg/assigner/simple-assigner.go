@@ -18,8 +18,7 @@ func NewSimplerAssigner(usersToRemove []string) SimplerAssigner {
 }
 
 func (sa SimplerAssigner) Assign(items []string) string {
-
-	withoutExcluded := withoutExcluded(items, sa)
+	withoutExcluded := withoutExcluded(items, sa.usersToRemove)
 
 	rand.Seed(time.Now().Unix())
 	position := rand.Int() % len(withoutExcluded)
@@ -27,10 +26,10 @@ func (sa SimplerAssigner) Assign(items []string) string {
 	return withoutExcluded[position]
 }
 
-func withoutExcluded(items []string, sa SimplerAssigner) []string {
+func withoutExcluded(items []string, usersToRemove map[string]struct{}) []string {
 	var withoutExcluded []string
 	for _, i := range items {
-		if _, ok := sa.usersToRemove[i]; !ok {
+		if _, ok := usersToRemove[i]; !ok {
 			withoutExcluded = append(withoutExcluded, i)
 		}
 	}

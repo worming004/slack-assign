@@ -33,10 +33,47 @@ func NewPonderedAssigner(dbFolder string, usersToRemove []string) (PonderedAssig
 }
 
 func (pa PonderedAssigner) Assign(users []string) string {
-	selectedUserId := pa.subAssign.Assign(users)
+	var last20Assigned []AssignHistory
+	pa.Order("date_assigned desc").Limit(len(users) * 5).Find(&last20Assigned)
+
+	multiplier := len(users) + 1
+	weightedAssigner := assignWithWeighting{last20Assigned, users, multiplier, pa.subAssign}
+	selectedUserId := weightedAssigner.Assign(users)
+
 	assignHistoryToStore := AssignHistory{UserId: selectedUserId, DateAssigned: time.Now()}
 
 	pa.Create(&assignHistoryToStore)
 
 	return selectedUserId
+}
+
+type assignWithWeighting struct {
+	assignHistories []AssignHistory
+	users           []string
+	multiplier      int
+	subAssign       Assigner
+}
+
+func (aw assignWithWeighting) Assign(_ []string) string {
+	var fullList []string
+	apparitions := aw.apparitionPerUser(aw.assignHistories)
+
+	for i := 0; i < aw.multiplier; i++ {
+		for _, user := range aw.users {
+			if apparitions[user] <= i {
+				fullList = append(fullList, user)
+			}
+		}
+	}
+
+	return aw.subAssign.Assign(fullList)
+}
+
+func (aw assignWithWeighting) apparitionPerUser(history []AssignHistory) map[string]int {
+	result := make(map[string]int)
+	for _, h := range history {
+		result[h.UserId]++
+	}
+
+	return result
 }
