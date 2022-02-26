@@ -8,6 +8,8 @@ import (
 	"gorm.io/gorm"
 )
 
+const multiplier int = 5
+
 type AssignHistory struct {
 	gorm.Model
 	UserId       string
@@ -33,8 +35,8 @@ func NewPonderedAssigner(dbFolder string) (PonderedAssigner, error) {
 
 func (pa PonderedAssigner) Assign(users []string) string {
 	var last20Assigned []AssignHistory
-	multiplier := len(users)
-	pa.Order("date_assigned desc").Limit(multiplier).Find(&last20Assigned)
+	lenUsers := len(users)
+	pa.Order("date_assigned desc").Limit(lenUsers * multiplier).Find(&last20Assigned)
 
 	weightedAssigner := assignWithWeighting{last20Assigned, users, multiplier + 1, pa.subAssign}
 	selectedUserId := weightedAssigner.Assign(users)
