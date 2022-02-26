@@ -16,11 +16,10 @@ type AssignHistory struct {
 
 type PonderedAssigner struct {
 	*gorm.DB
-	excludedUserIds []string
-	subAssign       Assigner
+	subAssign Assigner
 }
 
-func NewPonderedAssigner(dbFolder string, usersToRemove []string) (PonderedAssigner, error) {
+func NewPonderedAssigner(dbFolder string) (PonderedAssigner, error) {
 	dbPath := filepath.Join(dbFolder, "slack-history.db")
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
@@ -29,15 +28,15 @@ func NewPonderedAssigner(dbFolder string, usersToRemove []string) (PonderedAssig
 
 	db.AutoMigrate(&AssignHistory{})
 
-	return PonderedAssigner{db, usersToRemove, NewSimplerAssigner(usersToRemove)}, nil
+	return PonderedAssigner{db, NewSimplerAssigner()}, nil
 }
 
 func (pa PonderedAssigner) Assign(users []string) string {
 	var last20Assigned []AssignHistory
-	pa.Order("date_assigned desc").Limit(len(users) * 5).Find(&last20Assigned)
+	multiplier := len(users)
+	pa.Order("date_assigned desc").Limit(multiplier).Find(&last20Assigned)
 
-	multiplier := len(users) + 1
-	weightedAssigner := assignWithWeighting{last20Assigned, users, multiplier, pa.subAssign}
+	weightedAssigner := assignWithWeighting{last20Assigned, users, multiplier + 1, pa.subAssign}
 	selectedUserId := weightedAssigner.Assign(users)
 
 	assignHistoryToStore := AssignHistory{UserId: selectedUserId, DateAssigned: time.Now()}
@@ -54,7 +53,7 @@ type assignWithWeighting struct {
 	subAssign       Assigner
 }
 
-func (aw assignWithWeighting) Assign(_ []string) string {
+func (aw assignWithWeighting) Assign(users []string) string {
 	var fullList []string
 	apparitions := aw.apparitionPerUser(aw.assignHistories)
 
@@ -66,6 +65,9 @@ func (aw assignWithWeighting) Assign(_ []string) string {
 		}
 	}
 
+	if len(fullList) == 0 {
+		return aw.subAssign.Assign(users)
+	}
 	return aw.subAssign.Assign(fullList)
 }
 

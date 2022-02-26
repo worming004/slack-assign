@@ -15,8 +15,7 @@ type Assign struct {
 
 func NewAssign(C Configuration) (*Assign, error) {
 	api := slack.New(C.Token)
-	assignUserIdToRemove := C.AssignUserId
-	assign, err := assigner.NewPonderedAssigner(C.DbPath, []string{assignUserIdToRemove})
+	assign, err := assigner.NewPonderedAssigner(C.DbPath)
 	if err != nil {
 		return nil, err
 	}
@@ -28,6 +27,9 @@ func (a *Assign) Run() error {
 	if err != nil {
 		return err
 	}
+
+	// the assign bot is registered in the channel. So we remove it
+	users = withoutExcluded(users, []string{a.Configuration.AssignUserId})
 
 	selectedUser := a.assigner.Assign(users)
 
@@ -55,4 +57,20 @@ func (a *Assign) GetUsers() ([]string, error) {
 	}
 
 	return users, nil
+}
+
+func withoutExcluded(users []string, usersToRemove []string) []string {
+	var withoutExcluded []string
+
+	excluded := make(map[string]struct{})
+	for _, u := range usersToRemove {
+		excluded[u] = struct{}{}
+	}
+
+	for _, i := range users {
+		if _, ok := excluded[i]; !ok {
+			withoutExcluded = append(withoutExcluded, i)
+		}
+	}
+	return withoutExcluded
 }
