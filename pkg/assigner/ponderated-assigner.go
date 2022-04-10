@@ -1,11 +1,14 @@
 package assigner
 
 import (
+	"log"
+	"os"
 	"path/filepath"
 	"time"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 const multiplier int = 5
@@ -18,25 +21,31 @@ type AssignHistory struct {
 
 type PonderedAssigner struct {
 	*gorm.DB
-	subAssign Assigner
+	subAssign       Assigner
+	userIdsToIgnore []string
+}
+
+func (pa *PonderedAssigner) AddUserIdToIgnore(userid string) {
+	pa.userIdsToIgnore = append(pa.userIdsToIgnore, userid)
 }
 
 func NewPonderedAssigner(dbFolder string) (PonderedAssigner, error) {
 	dbPath := filepath.Join(dbFolder, "slack-history.db")
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	l := logger.New(log.New(os.Stdout, "\r\n", log.LstdFlags), logger.Config{})
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{Logger: l})
 	if err != nil {
 		return PonderedAssigner{}, err
 	}
 
 	db.AutoMigrate(&AssignHistory{})
 
-	return PonderedAssigner{db, NewSimplerAssigner()}, nil
+	return PonderedAssigner{db, NewSimplerAssigner(), []string{}}, nil
 }
 
 func (pa PonderedAssigner) Assign(users []string) string {
 	var last20Assigned []AssignHistory
 	lenUsers := len(users)
-	pa.Order("date_assigned desc").Limit(lenUsers * multiplier).Find(&last20Assigned)
+	pa.Order("date_assigned desc").Not("user_id IN ?", pa.userIdsToIgnore).Limit(lenUsers * multiplier).Find(&last20Assigned)
 
 	weightedAssigner := assignWithWeighting{last20Assigned, users, multiplier + 1, pa.subAssign}
 	selectedUserId := weightedAssigner.Assign(users)

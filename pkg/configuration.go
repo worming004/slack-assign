@@ -11,6 +11,8 @@ type Configuration struct {
 	AssignUserId string
 	DbPath       string
 	IsDebug      bool
+	// TODO refactor, this is more a runtime issue than a configuration issue
+	UserIdToIgnore []string
 }
 
 func GetConfigurationByEnvironmentVariable() Configuration {
@@ -26,10 +28,11 @@ func GetConfigurationByEnvironmentVariable() Configuration {
 	}
 
 	return Configuration{
-		Token:        token,
-		ChannelId:    channelId,
-		AssignUserId: assignUserId,
-		DbPath:       dbPath,
-		IsDebug:      isDebug,
+		Token:          token,
+		ChannelId:      channelId,
+		AssignUserId:   assignUserId,
+		DbPath:         dbPath,
+		IsDebug:        isDebug,
+		UserIdToIgnore: []string{},
 	}
 }

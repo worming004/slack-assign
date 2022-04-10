@@ -19,6 +19,9 @@ func NewAssign(C Configuration) (*Assign, error) {
 	if err != nil {
 		return nil, err
 	}
+	for _, ui := range C.UserIdToIgnore {
+		assign.AddUserIdToIgnore(ui)
+	}
 	return &Assign{C, api, assign}, nil
 }
 
@@ -29,7 +32,7 @@ func (a *Assign) Run() error {
 	}
 
 	// the assign bot is registered in the channel. So we remove it
-	users = withoutExcluded(users, []string{a.Configuration.AssignUserId})
+	users = withoutExcluded(users, append(a.Configuration.UserIdToIgnore, a.Configuration.AssignUserId))
 
 	selectedUser := a.assigner.Assign(users)
 
